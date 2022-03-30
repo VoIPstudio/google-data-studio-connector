@@ -37,19 +37,65 @@ function getFields(request) {
   var fields = cc.getFields();
   var types = cc.FieldType;
   var aggregations = cc.AggregationType;
+
+  fields.newMetric()
+    .setId('billsec')
+    .setName('Duration ')
+    .setType(types.NUMBER)
+    .setAggregation(aggregations.SUM);
+
+  fields.newDimension()
+    .setId('calldate')
+    .setName('Call Date and Time')
+    .setType(types.YEAR_MONTH_DAY_SECOND);
+
+  fields.newMetric()
+    .setId('charge')
+    .setName('Charge')
+    .setType(types.NUMBER)
+    .setAggregation(aggregations.SUM);
+
+  fields.newDimension()
+    .setId('clid')
+    .setName('Caller ID')
+    .setType(types.TEXT);
+  
+  fields.newDimension()
+    .setId('destination')
+    .setName('Direction')
+    .setType(types.TEXT);  
   
   fields.newDimension()
     .setId('disposition')
+    .setName('Disposition')
+    .setType(types.TEXT);
+
+  fields.newDimension()
+    .setId('dst')
+    .setName('Destination')
     .setType(types.TEXT);
   
   fields.newMetric()
     .setId('duration')
+    .setName('Duration - total')
     .setType(types.NUMBER)
     .setAggregation(aggregations.SUM);
   
   fields.newDimension()
-    .setId('calldate')
-    .setType(types.YEAR_MONTH_DAY_SECOND);
+    .setId('id')
+    .setName('CDR ID')
+    .setType(types.TEXT);  
+ 
+  fields.newMetric()
+    .setId('rate')
+    .setName('Per min rate')
+    .setType(types.NUMBER)
+    .setAggregation(aggregations.AVG);  
+
+  fields.newDimension()
+    .setId('src')
+    .setName('Source')
+    .setType(types.TEXT);
   
   return fields;
 }
@@ -103,29 +149,61 @@ function resetAuth() {
   userProperties.deleteProperty('voipstudio.token');
 }
 
-function responseToRows(requestedFields, response) {
+function responseToRows(requestedFields, data) {
   // Transform parsed data and filter for requested fields
-  return response.data.map(function(cdr) {
+  var count = 0;
+  var fields = requestedFields.asArray();
+  return data.map(function(cdr) {
     var row = [];
-    requestedFields.asArray().forEach(function (field) {
+    fields.forEach(function (field) {
       switch (field.getId()) {
+        case 'billsec':
+          return row.push(cdr.billsec);
         case 'calldate':
-          return row.push(cdr.calldate.replace(/-/g, '').replace(/:/g,''));
-        case 'duration':
-          return row.push(cdr.duration);
+          return row.push(cdr.calldate.replace(/[-:\s]/g, ''));
+        case 'charge':
+          return row.push(cdr.charge);
+        case 'clid':
+          return row.push(cdr.clid);
+        case 'destination': // Direction
+          if (cdr.type == 'O') {
+            return row.push('Outbound');
+          } else if (cdr.type == 'I') {
+            return row.push('Inbound');
+          } else if (cdr.type == 'M') {
+            return row.push('Missed');
+          } else {
+            return row.push('Unknown ' + cdr.type);
+          }
         case 'disposition':
           return row.push(cdr.disposition);
+        case 'dst':
+          return row.push(cdr.dst);
+        case 'duration':
+          return row.push(cdr.duration);
+        case 'id':
+          return row.push(cdr.id);
+        case 'rate':
+          return row.push(cdr.rate);
+        case 'src':
+          return row.push(cdr.src);
         default:
           return row.push('');
       }
     });
+
+    count++;
+    if (count <= 10) {
+      console.log(row);
+    }
+
     return { values: row };
   });
 }
 
 function getData(request) {
  
-  console.log('getData');
+  console.log('getData, request:');
   console.log(request);
   // {dateRange={endDate=2022-03-28, startDate=2022-03-01}, scriptParams={lastRefresh=1648522449802}, fields=[{name=billsec}, {name=calldate}]}
 
@@ -134,19 +212,26 @@ function getData(request) {
   });
   var requestedFields = getFields().forIds(requestedFieldIds);
 
-  console.log('requestedFields:');
-  console.log(requestedFields);
   var userProperties = PropertiesService.getUserProperties();
   var username = userProperties.getProperty('voipstudio.username');
   var token = userProperties.getProperty('voipstudio.token');
 
   var hash = Utilities.base64Encode(username + ":" + token);
+
+  var dateRange = request.dateRange;
+
+  var filter = [
+    {
+      operator: 'gt',
+      property: 'calldate',
+      value: dateRange.startDate + ' 00:00:00'
+    },{
+      operator: 'lt',
+      property: 'calldate',
+      value: dateRange.endDate + ' 23:59:59'
+    }
+  ];
   
-  // filter: [{"operator":"gt","value":"2022-02-28 23:00:00","property":"calldate"},{"operator":"lt","value":"2022-03-28 22:00:00","property":"calldate"}]
-  console.log('request:');
-  console.log(request);
-  
-  var baseURL = 'https://l7api.com/v1.2/voipstudio/cdrs?limit=20';
   var options = {
     'method' : 'GET',
     'headers': {
@@ -155,23 +240,67 @@ function getData(request) {
     },
     'muteHttpExceptions':true
   };
-  var response = UrlFetchApp.fetch(baseURL, options);
-  if (response.getResponseCode() == 200) {
-    var parsedResponse = JSON.parse(response);
-    var output = {
-      schema: requestedFields.build(),
-      rows: responseToRows(requestedFields, parsedResponse),
-      filtersApplied: false
-    };
-    console.log('output:');
-    console.log(output);
 
-    return output;
-  } else {
+  var data = [];
+  var page = 1;
+  var limit = 5000;
+  var maxPage = 500000 / limit;
+  var total = null;
+  var startTime = new Date().getMilliseconds();
+  
+
+  while (page <= maxPage) {
+
+    var url = 'https://l7api.com/v1.2/voipstudio/cdrs?page='+page+'&limit='+limit+'&filter=';
+
+    console.log('getData GET ' + url + JSON.stringify(filter));
+
+    var response = UrlFetchApp.fetch(url + encodeURIComponent(JSON.stringify(filter)), options);
+    if (response.getResponseCode() == 200) {
+      var parsedResponse = JSON.parse(response);
+
+      if (total === null) {
+        total = parsedResponse.total;
+      }
+
+      if (!total) {
+        break;
+      }
+
+      parsedResponse.data.forEach(function(record) {
+        data.push(record);
+      });
+
+      if (data.length == total) {
+        break;
+      }
+
+    } else {
+      DataStudioApp.createCommunityConnector()
+      .newUserError()
+      .setDebugText('Error fetching data from API. Exception details: ' + response)
+      .setText('Error fetching data from API. Exception details: ' + response)
+      .throwException();
+    }
+
+    page++;
+  }
+
+  if (data.length !== total) {
     DataStudioApp.createCommunityConnector()
     .newUserError()
-    .setDebugText('Error fetching data from API. Exception details: ' + response)
-    .setText('Error fetching data from API. Exception details: ' + response)
+    .setDebugText('Error fetching data from API. Expecte to get total ['+total+'] found instead ['+data.length+']')
+    .setText('Error fetching data from API. Expecte to get total ['+total+'] found instead ['+data.length+']')
     .throwException();
   }
+  
+  var timeDiff = new Date().getMilliseconds() - startTime;
+  
+  console.log('getData fetched ['+data.length+'] records from API in '+timeDiff+' ms.');
+
+  return {
+    schema: requestedFields.build(),
+    rows: responseToRows(requestedFields, data),
+    filtersApplied: false
+  };
 }

@@ -1,13 +1,14 @@
 {
-  "dependencies": {},
+  "dependencies": {
+  },
+  "runtimeVersion": "V8",
   "dataStudio": {
-    "name": "VoIPstudio data connector",
-    "logoUrl": "https://voipstudio.com/images/voipstudio/logo.png",
+    "name": "CDR data connector",
+    "logoUrl": "https://voipstudio.com/images/voipstudio/logo-vertical.png",
     "company": "VoIPstudio",
     "companyUrl": "https://voipstudio.com/",
     "addonUrl": "https://voipstudio.com/docs/administrator/integrations/",
     "supportUrl": "https://voipstudio.com/support/",
-    "description": "VoIPstudio data connector allows to import VoIPstudio CDR data into Google Data Studio"
-  },
-  "runtimeVersion": "DEPRECATED_ES5"
+    "description": "VoIPstudio data connector allows to import VoIPstudio CDR (Call Details Reports) data into Google Data Studio"
+  }
 }
