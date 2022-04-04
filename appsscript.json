@@ -7,8 +7,15 @@
     "logoUrl": "https://voipstudio.com/images/voipstudio/logo-vertical.png",
     "company": "VoIPstudio",
     "companyUrl": "https://voipstudio.com/",
-    "addonUrl": "https://voipstudio.com/docs/administrator/integrations/",
+    "addonUrl": "https://voipstudio.com/docs/administrator/integrations/googledatastudio/",
     "supportUrl": "https://voipstudio.com/support/",
-    "description": "VoIPstudio data connector allows to import VoIPstudio CDR (Call Details Reports) data into Google Data Studio"
-  }
+    "description": "VoIPstudio data connector allows to import VoIPstudio CDR (Call Details Reports) into Google Data Studio",
+    "shortDescription": "Import VoIPstudio CDRs into Google Data Studio",
+    "privacyPolicyUrl": "https://voipstudio.com/privacy-policy/",
+    "termsOfServiceUrl": "https://voipstudio.com/terms-and-conditions/",
+    "authType": [ "USER_TOKEN" ],
+    "feeType": [ "FREE_TRIAL", "PAID" ],
+    "sources": [ "VOIPSTUDIO_CDR" ]
+  },
+  "urlFetchWhitelist": [ "https://l7api.com/" ]
 }
