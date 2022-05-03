@@ -15,7 +15,10 @@
     "termsOfServiceUrl": "https://voipstudio.com/terms-and-conditions/",
     "authType": [ "USER_TOKEN" ],
     "feeType": [ "FREE_TRIAL", "PAID" ],
-    "sources": [ "VOIPSTUDIO_CDR" ]
+    "sources": [ "VOIPSTUDIO_CDR" ],
+    "templates": {
+      "default": "d7f00423-5234-4b73-9d27-2d9e3b8e51bd"
+    }
   },
   "urlFetchWhitelist": [ "https://l7api.com/" ],
   "oauthScopes": [ "https://www.googleapis.com/auth/script.external_request" ]
