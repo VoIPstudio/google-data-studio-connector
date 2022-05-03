@@ -3,7 +3,7 @@
   },
   "runtimeVersion": "V8",
   "dataStudio": {
-    "name": "CDR data connector",
+    "name": "CDR - Call Details Reports",
     "logoUrl": "https://voipstudio.com/images/voipstudio/logo-vertical.png",
     "company": "VoIPstudio",
     "companyUrl": "https://voipstudio.com/",
@@ -17,5 +17,6 @@
     "feeType": [ "FREE_TRIAL", "PAID" ],
     "sources": [ "VOIPSTUDIO_CDR" ]
   },
-  "urlFetchWhitelist": [ "https://l7api.com/" ]
+  "urlFetchWhitelist": [ "https://l7api.com/" ],
+  "oauthScopes": [ "https://www.googleapis.com/auth/script.external_request" ]
 }
